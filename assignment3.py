@@ -69,6 +69,10 @@ class TicTacToe:
             gameboard_copy[X, Y] = 0
         # get best move
         move = np.argmax(values)
+        move_value = np.max(values)
+
+        print(f'Board:\n {self.return_gameboard(gameboard_copy)}\nmove: {move}\nvalue: {move_value}\n')
+
         # make move
         moveX, moveY = empty_cells[0][move], empty_cells[1][move]
 
@@ -101,18 +105,18 @@ class TicTacToe:
         X, Y = empty_cells[0][choice], empty_cells[1][choice]
         gameboard_copy_level2[X, Y] = self.O
 
-        # check if draw
-        if not np.any(gameboard_copy_level2 == 0):
-            Q_values_dict[str(gameboard_copy_level2)] = 0
-            return  Q_values_dict
-
         X_win, Y_win = self.check_if_win(gameboard_copy_level2)
         if X_win:
             Q_values_dict[str(gameboard_copy_level2)] = 1
             return  Q_values_dict
         elif Y_win:
-            Q_values_dict[str(gameboard_copy_level2)] = -1
+            Q_values_dict[str(gameboard_copy_level2)] = 0
             return Q_values_dict
+
+        # check if draw
+        if not np.any(gameboard_copy_level2 == 0):
+            Q_values_dict[str(gameboard_copy_level2)] = 0
+            return  Q_values_dict
 
         # then, make random X move
         empty_cells = np.where(gameboard_copy_level2 == 0)
@@ -127,15 +131,14 @@ class TicTacToe:
             Q_values_dict[str(gameboard_copy_level2)] = 1
             return Q_values_dict
         elif Y_win:
-
-            Q_values_dict[str(gameboard_copy_level2)] = -1
+            Q_values_dict[str(gameboard_copy_level2)] = 0
             return Q_values_dict
 
         # if not terminal state, get Q value recursively
         Q_values_dict = self.get_Q_values(
             gameboard_copy_level2, Q_values_dict)
 
-        # update scores via child Q-values
+        # then, update scores via child Q-values
         # score is the max of the children
         # average over moves of O, maxify over moves of X:
         X_values = []
@@ -153,9 +156,10 @@ class TicTacToe:
 
         return Q_values_dict
 
-    def return_gameboard(self) -> np.array:
+    def return_gameboard(self, gameboard) -> np.array:
+        """ returns gameboard as visual X O board """
         gameboard_char = np.empty((3, 3), dtype='object')
-        for i, row in enumerate(self.gameboard):
+        for i, row in enumerate(gameboard):
             for j, cell in enumerate(row):
                 gameboard_char[i, j] = 'X' if cell == 1 else 'O' if cell == 2 else ''
         return gameboard_char
@@ -168,22 +172,22 @@ class TicTacToe:
             self.player_move_X(budget) # MCTS algo
             X_win, O_win = self.check_if_win(self.gameboard)
             if X_win:
-                return self.X, self.return_gameboard()
+                return self.X, self.return_gameboard(self.gameboard)
             elif O_win:
-                return self.O,  self.return_gameboard()
+                return self.O,  self.return_gameboard(self.gameboard)
 
             # player O
             self.make_random_move_O() # random
             X_win, O_win = self.check_if_win(self.gameboard)
             if X_win:
-                return self.X, self.return_gameboard()
+                return self.X, self.return_gameboard(self.gameboard)
             elif O_win:
-                return self.O,  self.return_gameboard()
+                return self.O,  self.return_gameboard(self.gameboard)
 
-        return 0,  self.return_gameboard()
+        return 0,  self.return_gameboard(self.gameboard)
 
 
-winner, gameboard = TicTacToe().run(budget = 200)
+winner, gameboard = TicTacToe().run(budget=500)
 
 if winner == 0:
     print('draw')
