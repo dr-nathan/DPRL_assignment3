@@ -96,15 +96,16 @@ def selectNode(root_node):
     return node
 
 def selectBestNode(node):
-    best_child = max(node.children, key=lambda obj: calculateScore(node.visits, obj.wins, obj.visits))
+    best_child = max(node.children, key=lambda obj: calculateUCTScore(node.visits, obj.wins, obj.visits))
     return best_child
 
 # TODO explain this function but basically we take the most winning state while also considering
 # total visits, if node has no visits we encourage the algorithm to visit it
-def calculateScore(parent_visit_count, wins, visit_count) -> float:
+def calculateUCTScore(parent_visit_count, wins, visit_count) -> float:
+    c = 1.2 # Temperature
     if (visit_count == 0):
         return 9999999999
-    return float(wins/visit_count) + 1.41 * math.sqrt(math.log(parent_visit_count/visit_count))
+    return float(wins)/float(visit_count) + c * math.sqrt(math.log(float(parent_visit_count)/float(visit_count)))
 
 def expandNode(node):
     # for each possible action we create a separate board and save it as a child node
@@ -133,7 +134,9 @@ def simulateRandomPath(node):
             tempNode.game_instance.make_random_move_O()
 
     X_win, O_win = tempNode.game_instance.check_if_win()
-    if X_win:
+    
+    if X_win: 
+        #print("WON")
         return True
     else:
         return False
@@ -146,12 +149,15 @@ def backpropagate(leaf_node, win):
         # if node.game_instance.turn == 1 and win:
         if win:
             node.wins += 1
+        else:
+            node.wins -= 1
         node = node.parent
     return
 
-def calculate_best_move(node):
-    # Simulate 1000 games to get Q values
-    for i in range(0, 1000):
+def calculate_best_move(node, simulations_per_move):
+    # Simulate x games to calculate Q values
+    for i in range(0, simulations_per_move):
+
         selected_node = selectNode(node)
 
         if not selected_node.game_instance.check_if_end():
@@ -164,7 +170,6 @@ def calculate_best_move(node):
 
         random_path_win = simulateRandomPath(node_to_explore)
         backpropagate(node_to_explore, random_path_win)
-
 
 def get_best_move_value(node, turn):
     # Get the best move from the root node, recusrively go through the tree
@@ -181,72 +186,100 @@ def get_best_move_value(node, turn):
         else:
             value = 0
     return value
+    
+def run_game(interactive = bool, simulations_per_move = int):
+    # Initializing board
+    starting_gameboard = np.array([[0, 0, 0], 
+                                [0, 2, 0], 
+                                [0, 0, 0]])
 
-# Initializing board
-starting_gameboard = np.array([[0, 0, 0],
-                               [0, 2, 0],
-                               [0, 0, 0]])
+    game_instance = TicTacToe()
+    game_instance.construct_gameboard()
+    node = Node(copy.deepcopy(game_instance), None) #initial node
+    node.game_instance.gameboard = starting_gameboard                             
+    node.game_instance.turn = 1
 
-game_instance = TicTacToe()
-game_instance.construct_gameboard()
-node = Node(copy.deepcopy(game_instance), None) #initial node
-node.game_instance.gameboard = starting_gameboard
-node.game_instance.turn = 1
 
-while True: 
-    # If the game ended
-    if node.game_instance.check_if_end():
-        break
-    # if its our turn, determine the optimal move:
-    elif(node.game_instance.turn == 1):
+    while True: 
+        # If the game ended
+        if node.game_instance.check_if_end():
+            break
+        # if its our turn, determine the optimal move:
+        elif(node.game_instance.turn == 1):
+            if interactive:
+                print("-----------------------It's your turn----------------------")
+                # print current board:
+                print("Current state of the board is: ")
+                print(node.game_instance.return_gameboard())
+                print("-----------------------------------------------------------")
 
-        print("-----------------------It's your turn----------------------")
-        # print current board:
-        print("Current state of the board is: ")
-        print(node.game_instance.return_gameboard())
-        print("-----------------------------------------------------------")
+                # Update Q values for all child nodes to determine best move:
+                print("Calculating QValues...")
 
-        # Update Q values for all child nodes to determine best move:
-        print("Calculating QValues...")
-        calculate_best_move(node)
-        
-        print("The different next steps (actions) that we can take have the following stats: ")
-        for children in node.children:
-            print("Gameboard:")
-            print(children.game_instance.return_gameboard())
-            print("this node has been visited: " + str(children.visits) + " times")
-            print("a total of : " + str(children.wins) + " times this action resulted in a win")
-            print(f"the MCTS algorithm scores it with an {get_best_move_value(children, 1)}")
+            calculate_best_move(node, simulations_per_move)
+            if interactive:
 
-        print("-----------------------------------------------------------")
-        # Pick the best action based on number of visits - because of how selectBestNode()
-        # works the child with the most visits is bound to be the best choice because
-        # it resulted in the most winning leaf nodes when compared to the total visits
-        best_action_node = max(node.children, key=lambda obj: get_best_move_value(obj, 1))
+                print("The different next steps (actions) that we can take have the following stats: ")
+                for children in node.children:
+                    print("Gameboard:")
+                    print(children.game_instance.return_gameboard())
+                    print("this node has been visited: " + str(children.visits) + " times")
+                    print("a total of : " + str(children.wins) + " times this action resulted in a win")
+                    print(f"the MCTS algorithm scores it with an {get_best_move_value(children, 1)}")
 
-        #best_action_node = max(node.children, key=lambda obj:  obj.wins / obj.visits if obj.visits != 0 else 0)
+                print("-----------------------------------------------------------")
+                # Pick the best action based on number of visits - because of how selectBestNode()
+                # works the child with the most visits is bound to be the best choice because
+                # it resulted in the most winning leaf nodes when compared to the total visits
+            best_action_node = max(node.children, key=lambda obj: get_best_move_value(obj, 1))
+            #best_action_node = max(node.children, key=lambda obj: obj.visits)
+            if interactive:
+                print("The action that results in the most wins is:")
+                print(best_action_node.game_instance.return_gameboard())
+                print("-----------------------------------------------------------")
 
-        print("The action that results in the most wins is:")
-        print(best_action_node.game_instance.return_gameboard())
-        print("-----------------------------------------------------------")
+                input("Press Enter to take the best action and continue...")
+            node = Node(copy.deepcopy(best_action_node.game_instance), None)
+            node.game_instance.turn = 2
 
-        input("Press Enter to take the best action and continue...")
-        node = Node(copy.deepcopy(best_action_node.game_instance), None)
-        node.game_instance.turn = 2
+        # If its not our turn, make a random move for the opponent
+        else:
+            node.game_instance.make_random_move_O()
+            if interactive:
+                print("\n")  
+                print("-----------------It's your opponent's turn-----------------")
+                print("-----------------------------------------------------------")
+                print("-------------Your Opponent made a random move!-------------")
+                print("\n")
 
-    # If its not our turn, make a random move for the opponent
+    if interactive:
+        if node.game_instance.check_if_win()[0] and node.game_instance.check_if_win()[1]:
+            print("Draw!")
+        elif node.game_instance.check_if_win()[0]:
+            print("You have won!")
+        elif node.game_instance.check_if_win()[1]:
+            print("Opponent has won!")
     else:
-        print("\n")  
-        print("-----------------It's your opponent's turn-----------------")
-        node.game_instance.make_random_move_O()
-        print("-----------------------------------------------------------")
-        print("-------------Your Opponent made a random move!-------------")
-        print("\n")
+        return node.game_instance.check_if_win()
 
+wins, loses, draws = 0, 0, 0
+games_to_play = 100
+simulations = 2000
 
-if node.game_instance.check_if_win()[0] and node.game_instance.check_if_win()[1]:
-    print("Draw!")
-elif node.game_instance.check_if_win()[0]:
-    print("You have won!")
-elif node.game_instance.check_if_win()[1]:
-    print("Opponent has won!")
+for i in range(0, games_to_play):
+    if i % 10 == 0:
+        print(str(i) + " games simulated")
+
+    X,O = run_game(interactive=False, simulations_per_move=simulations)
+    if not X and not O:
+        draws += 1
+    elif X:
+        wins += 1
+    else:
+        loses += 1
+
+print("Statistics after simulating " + str(games_to_play) + " games total with " + str(simulations) + " randomly simulated paths every (player) turn:")
+print("Total wins:" + str(wins))
+print("Total loses:" + str(loses))
+print("Total draws:" + str(draws))
+
