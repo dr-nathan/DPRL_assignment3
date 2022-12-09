@@ -201,7 +201,7 @@ while True:
         print("-----------------------It's your turn----------------------")
         # print current board:
         print("Current state of the board is: ")
-        print(node.game_instance.gameboard)
+        print(node.game_instance.return_gameboard())
         print("-----------------------------------------------------------")
 
         # Update Q values for all child nodes to determine best move:
@@ -211,7 +211,7 @@ while True:
         print("The different next steps (actions) that we can take have the following stats: ")
         for children in node.children:
             print("Gameboard:")
-            print(children.game_instance.gameboard)
+            print(children.game_instance.return_gameboard())
             print("this node has been visited: " + str(children.visits) + " times")
             print("a total of : " + str(children.wins) + " times this action resulted in a win")
             print(f"the MCTS algorithm scores it with an {get_best_move_value(children, 1)}")
@@ -225,7 +225,7 @@ while True:
         #best_action_node = max(node.children, key=lambda obj:  obj.wins / obj.visits if obj.visits != 0 else 0)
 
         print("The action that results in the most wins is:")
-        print(best_action_node.game_instance.gameboard)
+        print(best_action_node.game_instance.return_gameboard())
         print("-----------------------------------------------------------")
 
         input("Press Enter to take the best action and continue...")
