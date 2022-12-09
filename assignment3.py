@@ -195,7 +195,7 @@ while True:
         for children in node.children:
             print("Gameboard:")
             print(children.game_instance.gameboard)
-            print("the node has been visited: " + str(children.visits) + " times")
+            print("this node has been visited: " + str(children.visits) + " times")
             print("a total of : " + str(children.wins) + " times this action resulted in a win")
 
         print("-----------------------------------------------------------")
