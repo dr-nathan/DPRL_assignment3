@@ -158,23 +158,19 @@ node.game_instance.gameboard = starting_gameboard
 node.game_instance.turn = 1
 
 def calculate_best_move(node):
+    # Simulate 1000 games to get Q values
     for i in range(0, 1000):
         selected_node = selectNode(node)
 
-        # print("before expand:")
-        # print(len(selected_node.children))
         if not selected_node.game_instance.check_if_end():
             expandNode(selected_node)
         
-        # print("After expand:")
-        # print(len(selected_node.children))
         # We select a node with the best score and if it has any children we build out the tree
         node_to_explore = selected_node
         if (len(node_to_explore.children) > 0):
             node_to_explore = random.choice(selected_node.children)
 
         random_path_win = simulateRandomPath(node_to_explore)
-        # print(random_path_win)
         backpropagate(node_to_explore, random_path_win)
 
 
