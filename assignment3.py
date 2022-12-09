@@ -12,16 +12,16 @@ import copy
 import random
 import math
 
+from matplotlib import pyplot as plt
 
-class TicTacToe():
+
+class TicTacToe:
 
     def __init__(self):
         # to not get confused, bind X with 1 and O with 2
         self.X = 1
         self.O = 2
-        self.turn = 2
 
-    def construct_gameboard(self):
         # 0 is empty, 1 is X, 2 is O
         self.gameboard = np.zeros((3, 3))
         self.gameboard[1, 1] = self.O
@@ -58,13 +58,13 @@ class TicTacToe():
             elif np.all(row == self.O):
                 return False, True
         # check columns
-        for column in gameboard.T:
+        for column in self.gameboard.T:
             if np.all(column == self.X):
                 return True, False
             elif np.all(column == self.O):
                 return False, True
         # check diagonals:
-        for diag in np.diag(gameboard), np.diag(np.fliplr(gameboard)):
+        for diag in np.diag(self.gameboard), np.diag(np.fliplr(self.gameboard)):
             if np.all(diag == self.X):
                 return True, False
             elif np.all(diag == self.O):
@@ -79,6 +79,7 @@ class TicTacToe():
                 gameboard_char[i, j] = 'X' if cell == 1 else 'O' if cell == 2 else ''
         return gameboard_char
 
+
 class Node():
     def __init__(self, instance, parent):
         self.game_instance = instance
@@ -86,6 +87,7 @@ class Node():
         self.children = []
         self.wins = 0
         self.visits = 0
+
 
 # If the node has children we pick the one that is most suited according to calculateScore()
 def selectNode(root_node):
@@ -95,9 +97,11 @@ def selectNode(root_node):
     
     return node
 
+
 def selectBestNode(node):
     best_child = max(node.children, key=lambda obj: calculateUCTScore(node.visits, obj.wins, obj.visits))
     return best_child
+
 
 # TODO explain this function but basically we take the most winning state while also considering
 # total visits, if node has no visits we encourage the algorithm to visit it
@@ -106,6 +110,7 @@ def calculateUCTScore(parent_visit_count, wins, visit_count) -> float:
     if (visit_count == 0):
         return 9999999999
     return float(wins)/float(visit_count) + c * math.sqrt(math.log(float(parent_visit_count)/float(visit_count)))
+
 
 def expandNode(node):
     # for each possible action we create a separate board and save it as a child node
@@ -121,6 +126,7 @@ def expandNode(node):
 
         node.children.append(new_node)
     return node
+
 
 # Simulate a game from the chosen node, if we win return True if not False
 def simulateRandomPath(node):
@@ -141,6 +147,7 @@ def simulateRandomPath(node):
     else:
         return False
 
+
 # Backpropagate visits and wins back up until the root node
 def backpropagate(leaf_node, win):
     node = leaf_node
@@ -154,6 +161,7 @@ def backpropagate(leaf_node, win):
         node = node.parent
     return
 
+
 def calculate_best_move(node, simulations_per_move):
     # Simulate x games to calculate Q values
     for i in range(0, simulations_per_move):
@@ -165,11 +173,12 @@ def calculate_best_move(node, simulations_per_move):
         
         # We select a node with the best score and if it has any children we build out the tree
         node_to_explore = selected_node
-        if (len(node_to_explore.children) > 0):
+        if len(node_to_explore.children) > 0:
             node_to_explore = random.choice(selected_node.children)
 
         random_path_win = simulateRandomPath(node_to_explore)
         backpropagate(node_to_explore, random_path_win)
+
 
 def get_best_move_value(node, turn):
     # Get the best move from the root node, recusrively go through the tree
@@ -177,28 +186,27 @@ def get_best_move_value(node, turn):
         return 1 if node.game_instance.check_if_win()[0] else 0
     if turn == 1:
         if any(node.children):
+            # get maximum of children nodes if X turn
             value = np.max([get_best_move_value(child, 2) if child.visits > 0 else 0 for child in node.children])
         else:
             value = 0
     else:
         if any(node.children):
+            # get average of children nodes if O turn
             value = np.mean([get_best_move_value(child, 1) if child.visits > 0 else 0 for child in node.children])
         else:
             value = 0
     return value
-    
-def run_game(interactive = bool, simulations_per_move = int):
-    # Initializing board
-    starting_gameboard = np.array([[0, 0, 0], 
-                                [0, 2, 0], 
-                                [0, 0, 0]])
 
+
+def run_game(interactive : bool, simulations_per_move : int):
+    # Initializing game and make board
     game_instance = TicTacToe()
-    game_instance.construct_gameboard()
-    node = Node(copy.deepcopy(game_instance), None) #initial node
-    node.game_instance.gameboard = starting_gameboard                             
-    node.game_instance.turn = 1
 
+    state_scores = []
+
+    node = Node(copy.deepcopy(game_instance), None)  # initial node
+    node.game_instance.turn = 1
 
     while True: 
         # If the game ended
@@ -206,6 +214,7 @@ def run_game(interactive = bool, simulations_per_move = int):
             break
         # if its our turn, determine the optimal move:
         elif(node.game_instance.turn == 1):
+
             if interactive:
                 print("-----------------------It's your turn----------------------")
                 # print current board:
@@ -232,6 +241,8 @@ def run_game(interactive = bool, simulations_per_move = int):
                 # works the child with the most visits is bound to be the best choice because
                 # it resulted in the most winning leaf nodes when compared to the total visits
             best_action_node = max(node.children, key=lambda obj: get_best_move_value(obj, 1))
+            state_scores.append(get_best_move_value(best_action_node, 1))
+
             #best_action_node = max(node.children, key=lambda obj: obj.visits)
             if interactive:
                 print("The action that results in the most wins is:")
@@ -260,8 +271,13 @@ def run_game(interactive = bool, simulations_per_move = int):
         elif node.game_instance.check_if_win()[1]:
             print("Opponent has won!")
     else:
-        return node.game_instance.check_if_win()
+        # pad scores with final score to make sure that the length of the list is always the same
+        if len(state_scores) < 4:
+            state_scores.extend([node.game_instance.check_if_win()[0]*1]*(4-len(state_scores)))
+        return node.game_instance.check_if_win(), state_scores
 
+
+state_scores = []
 wins, loses, draws = 0, 0, 0
 games_to_play = 100
 simulations = 2000
@@ -270,7 +286,8 @@ for i in range(0, games_to_play):
     if i % 10 == 0:
         print(str(i) + " games simulated")
 
-    X,O = run_game(interactive=False, simulations_per_move=simulations)
+    (X, O), state_scores_run = run_game(interactive=False, simulations_per_move=simulations)
+    state_scores.append(state_scores_run)
     if not X and not O:
         draws += 1
     elif X:
@@ -278,8 +295,17 @@ for i in range(0, games_to_play):
     else:
         loses += 1
 
-print("Statistics after simulating " + str(games_to_play) + " games total with " + str(simulations) + " randomly simulated paths every (player) turn:")
+print("Statistics after simulating " + str(games_to_play) + " games total with " + str(simulations) +
+      "randomly simulated paths every (player) turn:")
 print("Total wins:" + str(wins))
 print("Total loses:" + str(loses))
 print("Total draws:" + str(draws))
 
+mean_scores = np.array(state_scores).mean(axis=0)
+std_scores = np.array(state_scores).std(axis=0, ddof=1)
+
+plt.errorbar([1, 2, 3, 4], mean_scores, yerr=mean_scores / 2)
+plt.title("MCTS score per turn")
+plt.xlabel("Turn")
+plt.ylabel("MCTS score")
+plt.show()
