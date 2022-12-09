@@ -8,35 +8,37 @@ Created on Sat Dec  3 13:46:14 2022
 
 import numpy as np
 import copy
+
 import random
 import math
 
+
 class TicTacToe():
-    
+
     def __init__(self):
-        #to not get confused, bind X with 1 and O with 2
+        # to not get confused, bind X with 1 and O with 2
         self.X = 1
         self.O = 2
         self.turn = 2
 
     def construct_gameboard(self):
         # 0 is empty, 1 is X, 2 is O
-        self.gameboard = np.zeros((3,3))
-        self.gameboard[1,1] = self.O
-        
+        self.gameboard = np.zeros((3, 3))
+        self.gameboard[1, 1] = self.O
+
     def make_random_move_O(self):
-        #get empty cells
+        # get empty cells
         empty_cells = np.where(self.gameboard == 0)
-        #choose 1 empty cell
+        # choose 1 empty cell
         choice = np.random.randint(0, len(empty_cells[0]))
-        #get coordinates of schosen cell and put O
+        # get coordinates of schosen cell and put O
         X, Y = empty_cells[0][choice],  empty_cells[1][choice]
         self.gameboard[X, Y] = self.O
         self.turn = 1
         
     def player_move_X(self):
-        #implement player startegy here
-        #for now, random
+        # implement player startegy here
+        # for now, random
         empty_cells = np.where(self.gameboard == 0)
         choice = np.random.randint(0, len(empty_cells[0]))
         X, Y = empty_cells[0][choice],  empty_cells[1][choice]
@@ -55,26 +57,26 @@ class TicTacToe():
                 return True, False
             elif np.all(row == self.O):
                 return False, True
-        #check columns
-        for column in self.gameboard.T:
+        # check columns
+        for column in gameboard.T:
             if np.all(column == self.X):
                 return True, False
             elif np.all(column == self.O):
                 return False, True
-        #check diagonals:
-        for diag in np.diag(self.gameboard), np.diag(np.fliplr(self.gameboard)):
+        # check diagonals:
+        for diag in np.diag(gameboard), np.diag(np.fliplr(gameboard)):
             if np.all(diag == self.X):
                 return True, False
             elif np.all(diag == self.O):
-                return False, True    
-            
+                return False, True
+
         return False, False
-        
-    def return_gameboard(self) -> np.array :
-        gameboard_char = np.empty((3,3), dtype = 'object')
+
+    def return_gameboard(self) -> np.array:
+        gameboard_char = np.empty((3, 3), dtype='object')
         for i, row in enumerate(self.gameboard):
             for j, cell in enumerate(row):
-                gameboard_char[i,j] = 'X' if cell==1 else 'O' if cell==2 else ''
+                gameboard_char[i, j] = 'X' if cell == 1 else 'O' if cell == 2 else ''
         return gameboard_char
 
 class Node():
@@ -118,12 +120,13 @@ def expandNode(node):
         new_node.game_instance.gameboard[X, Y] = node.game_instance.turn 
 
         node.children.append(new_node)
-    return
+    return node
 
 # Simulate a game from the chosen node, if we win return True if not False
 def simulateRandomPath(node):
     tempNode = Node(copy.deepcopy(node.game_instance), node.parent)
     # While the game has not ended
+
     while not tempNode.game_instance.check_if_end():
         if tempNode.game_instance.turn == 1:
             tempNode.game_instance.player_move_X()
@@ -143,7 +146,7 @@ def backpropagate(leaf_node, win):
     node = leaf_node
     while node is not None:
         node.visits += 1
-        #if node.game_instance.turn == 1 and win:
+        # if node.game_instance.turn == 1 and win:
         if win:
             node.wins += 1
         else:
@@ -154,10 +157,11 @@ def backpropagate(leaf_node, win):
 def calculate_best_move(node, simulations_per_move):
     # Simulate x games to calculate Q values
     for i in range(0, simulations_per_move):
+
         selected_node = selectNode(node)
 
         if not selected_node.game_instance.check_if_end():
-            expandNode(selected_node)
+            selected_node = expandNode(selected_node)
         
         # We select a node with the best score and if it has any children we build out the tree
         node_to_explore = selected_node
@@ -167,6 +171,22 @@ def calculate_best_move(node, simulations_per_move):
         random_path_win = simulateRandomPath(node_to_explore)
         backpropagate(node_to_explore, random_path_win)
 
+def get_best_move_value(node, turn):
+    # Get the best move from the root node, recusrively go through the tree
+    if node.game_instance.check_if_end():
+        return 1 if node.game_instance.check_if_win()[0] else 0
+    if turn == 1:
+        if any(node.children):
+            value = np.max([get_best_move_value(child, 2) if child.visits > 0 else 0 for child in node.children])
+        else:
+            value = 0
+    else:
+        if any(node.children):
+            value = np.mean([get_best_move_value(child, 1) if child.visits > 0 else 0 for child in node.children])
+        else:
+            value = 0
+    return value
+    
 def run_game(interactive = bool, simulations_per_move = int):
     # Initializing board
     starting_gameboard = np.array([[0, 0, 0], 
@@ -190,7 +210,7 @@ def run_game(interactive = bool, simulations_per_move = int):
                 print("-----------------------It's your turn----------------------")
                 # print current board:
                 print("Current state of the board is: ")
-                print(node.game_instance.gameboard)
+                print(node.game_instance.return_gameboard())
                 print("-----------------------------------------------------------")
 
                 # Update Q values for all child nodes to determine best move:
@@ -202,18 +222,20 @@ def run_game(interactive = bool, simulations_per_move = int):
                 print("The different next steps (actions) that we can take have the following stats: ")
                 for children in node.children:
                     print("Gameboard:")
-                    print(children.game_instance.gameboard)
+                    print(children.game_instance.return_gameboard())
                     print("this node has been visited: " + str(children.visits) + " times")
                     print("a total of : " + str(children.wins) + " times this action resulted in a win")
+                    print(f"the MCTS algorithm scores it with an {get_best_move_value(children, 1)}")
 
                 print("-----------------------------------------------------------")
                 # Pick the best action based on number of visits - because of how selectBestNode()
                 # works the child with the most visits is bound to be the best choice because
                 # it resulted in the most winning leaf nodes when compared to the total visits
-            best_action_node = max(node.children, key=lambda obj: obj.visits)
+            best_action_node = max(node.children, key=lambda obj: get_best_move_value(obj, 1))
+            #best_action_node = max(node.children, key=lambda obj: obj.visits)
             if interactive:
                 print("The action that results in the most wins is:")
-                print(best_action_node.game_instance.gameboard)
+                print(best_action_node.game_instance.return_gameboard())
                 print("-----------------------------------------------------------")
 
                 input("Press Enter to take the best action and continue...")
@@ -260,3 +282,4 @@ print("Statistics after simulating " + str(games_to_play) + " games total with "
 print("Total wins:" + str(wins))
 print("Total loses:" + str(loses))
 print("Total draws:" + str(draws))
+
