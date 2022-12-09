@@ -214,6 +214,7 @@ while True:
             print(children.game_instance.gameboard)
             print("this node has been visited: " + str(children.visits) + " times")
             print("a total of : " + str(children.wins) + " times this action resulted in a win")
+            print(f"the MCTS algorithm scores it with an {get_best_move_value(children, 1)}")
 
         print("-----------------------------------------------------------")
         # Pick the best action based on number of visits - because of how selectBestNode()
