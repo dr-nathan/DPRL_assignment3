@@ -117,12 +117,13 @@ def expandNode(node):
         new_node.game_instance.gameboard[X, Y] = node.game_instance.turn 
 
         node.children.append(new_node)
-    return
+    return node
 
 # Simulate a game from the chosen node, if we win return True if not False
 def simulateRandomPath(node):
     tempNode = Node(copy.deepcopy(node.game_instance), node.parent)
     # While the game has not ended
+
     while not tempNode.game_instance.check_if_end():
         if tempNode.game_instance.turn == 1:
             tempNode.game_instance.player_move_X()
@@ -130,7 +131,7 @@ def simulateRandomPath(node):
             tempNode.game_instance.make_random_move_O()
 
     X_win, O_win = tempNode.game_instance.check_if_win()
-    if X_win: 
+    if X_win:
         return True
     else:
         return False
@@ -140,22 +141,11 @@ def backpropagate(leaf_node, win):
     node = leaf_node
     while node is not None:
         node.visits += 1
-        #if node.game_instance.turn == 1 and win:
+        # if node.game_instance.turn == 1 and win:
         if win:
             node.wins += 1
         node = node.parent
     return
-
-# Initializing board
-starting_gameboard = np.array([[0, 0, 0], 
-                               [0, 2, 0], 
-                               [0, 0, 0]])
-
-game_instance = TicTacToe()
-game_instance.construct_gameboard()
-node = Node(copy.deepcopy(game_instance), None) #initial node
-node.game_instance.gameboard = starting_gameboard                             
-node.game_instance.turn = 1
 
 def calculate_best_move(node):
     # Simulate 1000 games to get Q values
@@ -163,7 +153,7 @@ def calculate_best_move(node):
         selected_node = selectNode(node)
 
         if not selected_node.game_instance.check_if_end():
-            expandNode(selected_node)
+            selected_node = expandNode(selected_node)
         
         # We select a node with the best score and if it has any children we build out the tree
         node_to_explore = selected_node
@@ -173,6 +163,33 @@ def calculate_best_move(node):
         random_path_win = simulateRandomPath(node_to_explore)
         backpropagate(node_to_explore, random_path_win)
 
+
+def get_best_move_value(node, turn):
+    # Get the best move from the root node, recusrively go through the tree
+    if node.game_instance.check_if_end():
+        return 1 if node.game_instance.check_if_win()[0] else 0
+    if turn == 1:
+        if any(node.children):
+            value = np.max([get_best_move_value(child, 2) if child.visits > 0 else 0 for child in node.children])
+        else:
+            value = 0
+    else:
+        if any(node.children):
+            value = np.mean([get_best_move_value(child, 1) if child.visits > 0 else 0 for child in node.children])
+        else:
+            value = 0
+    return value
+
+# Initializing board
+starting_gameboard = np.array([[0, 0, 0],
+                               [0, 2, 0],
+                               [0, 0, 0]])
+
+game_instance = TicTacToe()
+game_instance.construct_gameboard()
+node = Node(copy.deepcopy(game_instance), None) #initial node
+node.game_instance.gameboard = starting_gameboard
+node.game_instance.turn = 1
 
 while True: 
     # If the game ended
@@ -202,7 +219,9 @@ while True:
         # Pick the best action based on number of visits - because of how selectBestNode()
         # works the child with the most visits is bound to be the best choice because
         # it resulted in the most winning leaf nodes when compared to the total visits
-        best_action_node = max(node.children, key=lambda obj: obj.visits)
+        best_action_node = max(node.children, key=lambda obj: get_best_move_value(obj, 1))
+
+        #best_action_node = max(node.children, key=lambda obj:  obj.wins / obj.visits if obj.visits != 0 else 0)
 
         print("The action that results in the most wins is:")
         print(best_action_node.game_instance.gameboard)
