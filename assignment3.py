@@ -216,35 +216,6 @@ def run_game(interactive = bool, simulations_per_move = int):
                 print(best_action_node.game_instance.gameboard)
                 print("-----------------------------------------------------------")
 
-            # print("children of node")
-            # for children in node.children:
-            #     print(children.game_instance.gameboard)
-            #     print("visits " + str(children.visits))
-            #     print("wins " + str(children.wins))
-            # print("childs of child")
-            # for children in node.children:
-            #     print("one child")
-            #     for child in children.children:
-                    
-            #         print(child.game_instance.gameboard)
-            #         print("visits " + str(child.visits))
-            #         print("wins " + str(child.wins))
-            
-            # print("original board:")
-            # print(node.game_instance.gameboard)
-            # print("children of node")
-            # print(node.children[1].game_instance.gameboard)
-            # print("visits " + str(node.children[1].visits))
-            # print("wins " + str(node.children[1].wins))
-
-            # print("one child")
-            # for child in node.children[1].children:
-                
-            #     print(child.game_instance.gameboard)
-            #     print("visits " + str(child.visits))
-            #     print("wins " + str(child.wins))
-
-
                 input("Press Enter to take the best action and continue...")
             node = Node(copy.deepcopy(best_action_node.game_instance), None)
             node.game_instance.turn = 2
