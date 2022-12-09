@@ -8,6 +8,8 @@ Created on Sat Dec  3 13:46:14 2022
 
 import numpy as np
 import copy
+import random
+import math
 
 class TicTacToe():
     
@@ -44,7 +46,7 @@ class TicTacToe():
     # Return true if one of the players won or if there are no more possible moves
     def check_if_end(self):
         X,O = self.check_if_win()
-        return X or O or (len(np.where(node.game_instance.gameboard == 0)[0]) == 0)
+        return X or O or (len(np.where(self.gameboard == 0)[0]) == 0)
 
     def check_if_win(self) -> (bool, bool): #returns X_win, O_win
         #check rows
@@ -77,27 +79,35 @@ class TicTacToe():
 
 class Node():
     def __init__(self, instance, parent):
-        self.score = 0
         self.game_instance = instance
         self.parent = parent
         self.children = []
         self.wins = 0
         self.visits = 0
 
-def getQValues(node):
-    #if terminal node, 1 reward for winning and 0 for losing
-    if node.game_instance.check_if_end():
-        node.visits += 1 
-        X_win, O_win = node.game_instance.check_if_win()
-        if X_win: 
-            node.score = 1
-
-        return node.score, node.visits
+# If the node has children we pick the one that is most suited according to calculateScore()
+def selectNode(root_node):
+    node = root_node
+    while (len(node.children) != 0):
+        node = selectBestNode(node)
     
+    return node
+
+def selectBestNode(node):
+    best_child = max(node.children, key=lambda obj: calculateScore(node.visits, obj.wins, obj.visits))
+    return best_child
+
+# TODO explain this function but basically we take the most winning state while also considering
+# total visits, if node has no visits we encourage the algorithm to visit it
+def calculateScore(parent_visit_count, wins, visit_count) -> float:
+    if (visit_count == 0):
+        return 9999999999
+    return float(wins/visit_count) + 1.41 * math.sqrt(math.log(parent_visit_count/visit_count))
+
+def expandNode(node):
     # for each possible action we create a separate board and save it as a child node
     for action in range(0,len(np.where(node.game_instance.gameboard == 0)[0])):
         new_node = Node(copy.deepcopy(node.game_instance), node)
-
         empty_cells = np.where(node.game_instance.gameboard == 0)
         X, Y = empty_cells[0][action], empty_cells[1][action]
         # Take the action depending on which players turn it is:
@@ -105,15 +115,36 @@ def getQValues(node):
         new_node.game_instance.turn = 1 if node.game_instance.turn == 2 else 2 
         # Make the move according to which players turn it was
         new_node.game_instance.gameboard[X, Y] = node.game_instance.turn 
+
         node.children.append(new_node)
+    return
 
-        # Recursion - backpropagate scores and visits so that they can be used in final
-        # argmax calculation to get the best action
-        child_Q, child_visits = getQValues(new_node)
-        node.score += child_Q
-        node.visits += child_visits
+# Simulate a game from the chosen node, if we win return True if not False
+def simulateRandomPath(node):
+    tempNode = Node(copy.deepcopy(node.game_instance), node.parent)
+    # While the game has not ended
+    while not tempNode.game_instance.check_if_end():
+        if tempNode.game_instance.turn == 1:
+            tempNode.game_instance.player_move_X()
+        else:
+            tempNode.game_instance.make_random_move_O()
 
-    return node.score, node.visits
+    X_win, O_win = tempNode.game_instance.check_if_win()
+    if X_win: 
+        return True
+    else:
+        return False
+
+# Backpropagate visits and wins back up until the root node
+def backpropagate(leaf_node, win):
+    node = leaf_node
+    while node is not None:
+        node.visits += 1
+        #if node.game_instance.turn == 1 and win:
+        if win:
+            node.wins += 1
+        node = node.parent
+    return
 
 # Initializing board
 starting_gameboard = np.array([[0, 0, 0], 
@@ -125,6 +156,27 @@ game_instance.construct_gameboard()
 node = Node(copy.deepcopy(game_instance), None) #initial node
 node.game_instance.gameboard = starting_gameboard                             
 node.game_instance.turn = 1
+
+def calculate_best_move(node):
+    for i in range(0, 1000):
+        selected_node = selectNode(node)
+
+        # print("before expand:")
+        # print(len(selected_node.children))
+        if not selected_node.game_instance.check_if_end():
+            expandNode(selected_node)
+        
+        # print("After expand:")
+        # print(len(selected_node.children))
+        # We select a node with the best score and if it has any children we build out the tree
+        node_to_explore = selected_node
+        if (len(node_to_explore.children) > 0):
+            node_to_explore = random.choice(selected_node.children)
+
+        random_path_win = simulateRandomPath(node_to_explore)
+        # print(random_path_win)
+        backpropagate(node_to_explore, random_path_win)
+
 
 while True: 
     # If the game ended
@@ -139,24 +191,31 @@ while True:
         print(node.game_instance.gameboard)
         print("-----------------------------------------------------------")
 
-        # Update Q values for all nodes:
+        # Update Q values for all child nodes to determine best move:
         print("Calculating QValues...")
-        node = Node(copy.deepcopy(node.game_instance), None) #initial node
-        getQValues(node)
+        calculate_best_move(node)
         
-        # Pick best move based on Q value:
-        print("Best action according to calculation is:")
-        # Pick the best action based on number of winning states/total possible ending states
-        # "obj.visits and obj.score/obj.visits" is for handling division by 0
-        best_action_node = max(node.children, key=lambda obj: obj.visits and obj.score/obj.visits)
+        print("The different next steps (actions) that we can take have the following stats: ")
+        for children in node.children:
+            print("Gameboard:")
+            print(children.game_instance.gameboard)
+            print("the node has been visited: " + str(children.visits) + " times")
+            print("a total of : " + str(children.wins) + " times this action resulted in a win")
+
+        print("-----------------------------------------------------------")
+        # Pick the best action based on number of visits - because of how selectBestNode()
+        # works the child with the most visits is bound to be the best choice because
+        # it resulted in the most winning leaf nodes when compared to the total visits
+        best_action_node = max(node.children, key=lambda obj: obj.visits)
+
+        print("The action that results in the most wins is:")
         print(best_action_node.game_instance.gameboard)
-        print("\nBest action score (wins out of total possible endings) is: ")
-        print(str(best_action_node.score) + " \ " + str(best_action_node.visits))
         print("-----------------------------------------------------------")
 
         input("Press Enter to take the best action and continue...")
-        node = copy.deepcopy(best_action_node)
+        node = Node(copy.deepcopy(best_action_node.game_instance), None)
         node.game_instance.turn = 2
+
     # If its not our turn, make a random move for the opponent
     else:
         print("\n")  
